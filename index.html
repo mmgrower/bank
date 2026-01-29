@@ -1,36 +1,64 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>КотБанк WORLD — общий банк</title>
-  <style>
-    body{font-family:Segoe UI,Arial;margin:0;background:linear-gradient(120deg,#eef2ff,#f9fafb)}
-    header{background:linear-gradient(90deg,#22c55e,#3b82f6);color:#fff;padding:18px;text-align:center;font-size:22px;font-weight:700}
-    .container{padding:16px;max-width:1100px;margin:0 auto}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .box{background:#fff;border-radius:16px;padding:16px;box-shadow:0 8px 20px rgba(0,0,0,.08)}
-    input,select{width:100%;padding:10px;margin-bottom:10px;border-radius:10px;border:1px solid #ddd}
-    button{padding:10px 12px;border:none;border-radius:12px;background:#3b82f6;color:#fff;cursor:pointer}
-    button.warn{background:#ef4444}
-    .card{border:2px dashed #3b82f6;border-radius:14px;padding:12px;margin-bottom:12px}
-    .money{font-weight:700}
-    @media(max-width:800px){.grid{grid-template-columns:1fr}}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>КотБанк WORLD — общий банк с режимами</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin:0; background: linear-gradient(120deg,#eef2ff,#f9fafb); }
+  header { background: linear-gradient(90deg,#22c55e,#3b82f6); color: #fff; padding: 18px; text-align: center; font-size: 22px; font-weight: 700; }
+  .container { padding: 16px; max-width: 1100px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .box { background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+  input, select { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; }
+  button { padding: 10px 12px; border: none; border-radius: 12px; background: #3b82f6; color: #fff; cursor: pointer; }
+  button.warn { background: #ef4444; }
+  .card, .main-card { border: 2px dashed #3b82f6; border-radius: 14px; padding: 12px; margin-bottom: 12px; position: relative; }
+  .money { font-weight: 700; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; position: absolute; top: 10px; right: 10px; }
+  .badge { background: rgba(255,255,255,.25); padding: 4px 10px; border-radius: 999px; display: inline-block; font-size: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .hidden { display: none; }
+  @media(max-width:800px){ .grid { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
-<header>🌍 КотБанк WORLD (общий)</header>
+<header>🌍 КотБанк WORLD</header>
 <div class="container">
+  <div class="box">
+    <h3>Главная карта</h3>
+    <div class="main-card" id="mainCard">
+      <div class="badge">Владелец</div>
+      <div id="mainOwner">Супер Кот 😎</div>
+      <div>Номер: <span id="mainNum">0000 1111 2222 3333</span></div>
+      <div>Баланс: <span id="mainBalance">500</span> ₽</div>
+      <img id="mainAvatar" class="avatar" src="https://i.imgur.com/4AiXzf8.png" alt="avatar">
+      <div class="row">
+        <button onclick="changeBalance('main',10)">+10 ₽</button>
+        <button onclick="changeBalance('main',50)">+50 ₽</button>
+        <button onclick="changeBalance('main',100)">+100 ₽</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <h3>Режим пользователя</h3>
+    <select id="modeSelect" onchange="switchMode()">
+      <option value="guest">Гость</option>
+      <option value="owner">Владелец</option>
+    </select>
+  </div>
+
   <div class="grid">
     <div class="box">
-      <h3>➕ Новая карта клиента</h3>
+      <h3>➕ Добавить карту клиента</h3>
       <input id="name" placeholder="Имя клиента">
       <input id="shop" placeholder="Магазин">
       <input id="discount" placeholder="Скидка %" type="number">
-      <button onclick="addCard()">Добавить</button>
+      <button id="addCardBtn" onclick="addCard()">Добавить карту</button>
     </div>
     <div class="box">
-      <h3>💳 Все карты (видят все)</h3>
+      <h3>💳 Все карты клиентов</h3>
       <div id="cards"></div>
     </div>
   </div>
@@ -40,13 +68,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-/*
-ШАГ ОБЯЗАТЕЛЬНЫЙ ❗
-1) Зайди на https://console.firebase.google.com
-2) Создай проект (бесплатно)
-3) Добавь Web App
-4) Скопируй конфиг сюда
-*/
 const firebaseConfig = {
   apiKey: "AIzaSyA9X-bRHmAgMcGqul2M06kRQzRj7AgVWr8",
   authDomain: "bank-61db9.firebaseapp.com",
@@ -60,18 +81,27 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const cardsRef = db.ref('cards');
+const mainRef = db.ref('mainCard');
 const cardsEl = document.getElementById('cards');
+let mode = 'guest';
+
+function switchMode(){
+  mode = document.getElementById('modeSelect').value;
+  document.getElementById('addCardBtn').style.display = mode==='owner'?'inline-block':'none';
+}
 
 function renderCard(id,data){
-  const div=document.createElement('div');
+  const div = document.createElement('div');
   div.className='card';
   div.innerHTML=`<strong>${data.name}</strong><br>
-  Магазин: ${data.shop}<br>
-  Скидка: ${data.discount}%<br>
-  Баланс: <span class="money">${data.balance}</span> ₽<br>
-  <button onclick="addMoney('${id}',10)">+10</button>
-  <button onclick="takeMoney('${id}',10)">-10</button>
-  <button class="warn" onclick="removeCard('${id}')">Удалить</button>`;
+    Магазин: ${data.shop}<br>
+    Скидка: ${data.discount}%<br>
+    Баланс: <span class="money">${data.balance}</span> ₽<br>
+    <div class="row">
+      <button onclick="changeBalance('${id}',10)">+10</button>
+      <button onclick="changeBalance('${id}',-10)">-10</button>
+      ${mode==='owner'?'<button class="warn" onclick="removeCard(\''+id+'\')">Удалить</button>':''}
+    </div>`;
   return div;
 }
 
@@ -82,21 +112,45 @@ function loadCards(){
       cardsEl.appendChild(renderCard(c.key,c.val()));
     });
   });
+  mainRef.on('value',snap=>{
+    const data = snap.val();
+    if(!data) return;
+    document.getElementById('mainOwner').textContent = data.owner;
+    document.getElementById('mainNum').textContent = data.num;
+    document.getElementById('mainBalance').textContent = data.balance;
+    document.getElementById('mainAvatar').src = data.avatar;
+  });
 }
 
 function addCard(){
-  const name=name.value, shop=shop.value, discount=discount.value;
-  if(!name||!shop||!discount){alert('Заполни всё');return}
+  const name=document.getElementById('name').value;
+  const shop=document.getElementById('shop').value;
+  const discount=document.getElementById('discount').value;
+  if(!name||!shop||!discount){alert('Заполни все поля'); return;}
   cardsRef.push({name,shop,discount,balance:0});
   document.getElementById('name').value='';
   document.getElementById('shop').value='';
   document.getElementById('discount').value='';
 }
 
-function addMoney(id,amt){ cardsRef.child(id).once('value',s=>{ cardsRef.child(id).update({balance:(s.val().balance||0)+amt});}); }
-function takeMoney(id,amt){ cardsRef.child(id).once('value',s=>{ const b=s.val().balance||0; if(b>=amt) cardsRef.child(id).update({balance:b-amt});}); }
+function changeBalance(id,amt){
+  if(id==='main'){
+    mainRef.once('value',s=>{
+      const b = s.val()?.balance || 0;
+      mainRef.update({balance: b+amt});
+    });
+  } else {
+    cardsRef.child(id).once('value',s=>{
+      const b = s.val()?.balance || 0;
+      const newBal = b+amt<0?0:b+amt;
+      cardsRef.child(id).update({balance:newBal});
+    });
+  }
+}
+
 function removeCard(id){ if(confirm('Удалить карту?')) cardsRef.child(id).remove(); }
 
+switchMode();
 loadCards();
 </script>
 </body>
