@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>КотБанк ULTRA+ — карты, покупки и достижения</title>
+  <style>
+    body { font-family:'Segoe UI', Arial; margin:0; background:linear-gradient(120deg,#eef2ff,#f9fafb);} 
+    header { background:linear-gradient(90deg,#22c55e,#3b82f6); color:white; padding:18px; font-size:22px; font-weight:700; text-align:center;}
+    .container { padding:16px; max-width:1100px; margin:0 auto; }
+    .hero { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:center; }
+    .card-visual { background:linear-gradient(135deg,var(--c1,#22c55e),var(--c2,#3b82f6)); color:white; border-radius:20px; padding:18px; box-shadow:0 10px 20px rgba(0,0,0,0.15); position:relative; }
+    .card-visual .num { letter-spacing:2px; margin:10px 0; }
+    .badge { background:rgba(255,255,255,.25); padding:4px 10px; border-radius:999px; display:inline-block; font-size:12px; }
+    .balance { font-size:26px; font-weight:800; margin:12px 0; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+    .box { background:white; border-radius:16px; padding:16px; box-shadow:0 8px 20px rgba(0,0,0,0.08); }
+    h3 { margin-top:0; }
+    input, select { width:100%; padding:10px; margin-bottom:10px; font-size:14px; border-radius:10px; border:1px solid #ddd; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    button { padding:10px 12px; border:none; border-radius:12px; background:#3b82f6; color:white; font-size:14px; cursor:pointer; }
+    button.alt { background:#22c55e; }
+    button.warn { background:#ef4444; }
+    button.ghost { background:#e5e7eb; color:#111; }
+    .discount-card { border:2px dashed #3b82f6; border-radius:14px; padding:12px; margin-bottom:12px; position:relative; }
+    .small { color:#555; font-size:13px; }
+    .money { font-weight:700; }
+    .fun { font-size:13px; color:#6b7280; }
+    .avatar { width:40px; height:40px; border-radius:50%; position:absolute; top:10px; right:10px; }
+    .achievement { background:#fcd34d; padding:6px 10px; border-radius:12px; margin:4px 0; font-size:13px; }
+    @media(max-width:800px){.hero,.grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+<header>🚀 КотБанк ULTRA+</header>
+<div class="container">
+  <div class="hero">
+    <div class="card-visual" id="myCard" style="--c1:#22c55e;--c2:#3b82f6">
+      <div class="badge">МОЯ КАРТА</div>
+      <div class="num">0000 1111 2222 3333</div>
+      <div>Владелец: <strong id="ownerName">Супер Кот 😎</strong></div>
+      <div class="balance">Баланс: <span id="myBalance">500</span> ₽</div>
+      <img id="myAvatar" class="avatar" src="https://i.imgur.com/4AiXzf8.png" alt="Аватар">
+      <div id="achievements"></div>
+      <div style="margin-top:8px" class="row">
+        <button onclick="addToMyCard(10)">+10 ₽</button>
+        <button onclick="addToMyCard(50)">+50 ₽</button>
+        <button onclick="addToMyCard(100)">+100 ₽</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>🎨 Сделай СВОЮ карту</h3>
+      <input id="oName" placeholder="Имя владельца" />
+      <input id="oNum" placeholder="Номер карты" />
+      <input id="oAvatar" placeholder="URL аватара" />
+      <select id="theme">
+        <option value="#22c55e,#3b82f6">Зелёно-синяя</option>
+        <option value="#f59e0b,#ef4444">Оранжево-красная</option>
+        <option value="#8b5cf6,#ec4899">Фиолетово-розовая</option>
+        <option value="#111827,#6b7280">Тёмная PRO</option>
+      </select>
+      <div class="row">
+        <button class="alt" onclick="applyMyCard()">Сохранить карту</button>
+        <button class="ghost" onclick="cheer()">🎉 Сюрприз</button>
+      </div>
+      <p class="fun" id="cheerText"></p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="box">
+      <h3>➕ Добавить скидочную карту клиента</h3>
+      <input id="name" placeholder="Имя клиента" />
+      <input id="shop" placeholder="Магазин" />
+      <input id="discount" placeholder="Скидка (%)" type="number" />
+      <button onclick="addDiscountCard()">Добавить карту</button>
+      <p class="small">Каждой карте можно добавлять деньги 👇</p>
+    </div>
+
+    <div class="box">
+      <h3>💳 Скидочные карты клиентов</h3>
+      <div id="cards"></div>
+    </div>
+  </div>
+</div>
+<footer>Учебный сайт • деньги и покупки не настоящие • радость — настоящая 💛</footer>
+<script>
+// Сохранение и загрузка
+let myBalance=500;
+const myBalanceEl=document.getElementById('myBalance');
+const achievementsEl=document.getElementById('achievements');
+function saveData(){
+  const cards=[];
+  document.querySelectorAll('.discount-card').forEach(c=>{
+    cards.push({name:c.dataset.name,shop:c.dataset.shop,discount:c.dataset.discount,balance:c.dataset.balance,avatar:c.dataset.avatar});
+  });
+  localStorage.setItem('cards',JSON.stringify(cards));
+  localStorage.setItem('myCard',JSON.stringify({owner:document.getElementById('ownerName').textContent,num:document.querySelector('#myCard .num').textContent,balance:myBalance,avatar:document.getElementById('myAvatar').src}));
+  localStorage.setItem('achievements',achievementsEl.innerHTML);
+}
+function loadData(){
+  const my=JSON.parse(localStorage.getItem('myCard'));
+  if(my){
+    document.getElementById('ownerName').textContent=my.owner;
+    document.querySelector('#myCard .num').textContent=my.num;
+    myBalance=my.balance;
+    myBalanceEl.textContent=myBalance;
+    document.getElementById('myAvatar').src=my.avatar;
+  }
+  const ach=localStorage.getItem('achievements');
+  if(ach) achievementsEl.innerHTML=ach;
+  const cards=JSON.parse(localStorage.getItem('cards')||'[]');
+  cards.forEach(c=>addDiscountCard(c.name,c.shop,c.discount,c.balance,c.avatar));
+}
+window.addEventListener('beforeunload',saveData);
+
+// МОЯ КАРТА
+function applyMyCard(){
+  const n=document.getElementById('oName').value||'Супер Кот 😎';
+  const num=document.getElementById('oNum').value||'0000 1111 2222 3333';
+  const avatar=document.getElementById('oAvatar').value||'https://i.imgur.com/4AiXzf8.png';
+  const [c1,c2]=document.getElementById('theme').value.split(',');
+  document.getElementById('ownerName').textContent=n;
+  document.querySelector('#myCard .num').textContent=num;
+  document.getElementById('myCard').style.setProperty('--c1',c1);
+  document.getElementById('myCard').style.setProperty('--c2',c2);
+  document.getElementById('myAvatar').src=avatar;
+}
+function cheer(){
+  const msgs=['Ты айтишник! 💻','Банк одобряет! ✅','Кот доволен 🐱','ULTRA уровень! 🚀'];
+  document.getElementById('cheerText').textContent=msgs[Math.floor(Math.random()*msgs.length)];
+}
+function addToMyCard(amount){
+  myBalance+=amount;
+  myBalanceEl.textContent=myBalance;
+  checkAchievements();
+}
+function checkAchievements(){
+  achievementsEl.innerHTML='';
+  if(myBalance>=1000) achievementsEl.innerHTML+='<div class="achievement">💰 Накопил 1000 ₽!</div>';
+  if(myBalance>=5000) achievementsEl.innerHTML+='<div class="achievement">🏆 Миллионер (почти)! 💎</div>';
+}
+
+// СКИДОЧНЫЕ КАРТЫ
+const cardsEl=document.getElementById('cards');
+function addDiscountCard(nameInput,shopInput,discountInput,balanceInput,avatarInput){
+  const name=nameInput||document.getElementById('name').value;
+  const shop=shopInput||document.getElementById('shop').value;
+  const discount=discountInput||document.getElementById('discount').value;
+  const balance=balanceInput||0;
+  const avatar=avatarInput||'https://i.imgur.com/4AiXzf8.png';
+  if(!name||!shop||!discount){if(!nameInput) {alert('Заполни все поля 🙂'); return;} }
+  const div=document.createElement('div');
+  div.className='discount-card';
+  div.dataset.name=name;
+  div.dataset.shop=shop;
+  div.dataset.discount=discount;
+  div.dataset.balance=balance;
+  div.dataset.avatar=avatar;
+  div.innerHTML=`<img class="avatar" src="${avatar}"><strong>${name}</strong><br>Магазин: ${shop}<br>Скидка: ${discount}%<br>Баланс карты: <span class="money">${balance}</span> ₽<div class="row" style="margin-top:8px"><button onclick="addMoney(this,10)">+10 ₽</button><button onclick="addMoney(this,50)">+50 ₽</button><button onclick="addMoney(this,100)">+100 ₽</button><button class="warn" onclick="removeCard(this)">Удалить</button></div>`;
+  cardsEl.appendChild(div);
+  if(!nameInput){document.getElementById('name').value=''; document.getElementById('shop').value=''; document.getElementById('discount').value='';}
+}
+function addMoney(btn,amount){
+  const card=btn.closest('.discount-card');
+  const span=card.querySelector('.money');
+  card.dataset.balance=Number(card.dataset.balance)+amount;
+  span.textContent=card.dataset.balance;
+}
+function removeCard(btn){ if(confirm('Точно удалить карту?')) btn.closest('.discount-card').remove();}
+
+loadData();
+</script>
+</body>
+</html>
